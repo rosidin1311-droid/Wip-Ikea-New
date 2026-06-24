@@ -1,0 +1,6 @@
+{
+  "name": "WIP Tracker IKEA",
+  "description": "Aplikasi tracking WIP dan stok produksi berbasis mobile untuk lantai produksi",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
