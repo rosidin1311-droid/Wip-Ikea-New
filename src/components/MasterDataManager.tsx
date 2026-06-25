@@ -37,6 +37,40 @@ export default function MasterDataManager({
   const [selectedProses, setSelectedProses] = useState<string[]>([]);
   const [itemStockReady, setItemStockReady] = useState(0);
 
+  // Custom Process Pool State
+  const [availableProses, setAvailableProses] = useState<string[]>(() => {
+    const saved = localStorage.getItem('available_proses_list');
+    const baseList = saved ? JSON.parse(saved) : [...DEFAULT_PROSES];
+    const itemProcesses = items.flatMap(i => i.alur_proses || []);
+    const uniqueMerged = Array.from(new Set([...baseList, ...itemProcesses]));
+    return uniqueMerged;
+  });
+  const [newProsesName, setNewProsesName] = useState('');
+
+  const handleAddCustomProses = () => {
+    const trimmed = newProsesName.trim().toUpperCase();
+    if (!trimmed) return;
+    if (availableProses.includes(trimmed)) {
+      alert('Proses tersebut sudah ada di daftar.');
+      return;
+    }
+    const updated = [...availableProses, trimmed];
+    setAvailableProses(updated);
+    localStorage.setItem('available_proses_list', JSON.stringify(updated));
+    setNewProsesName('');
+  };
+
+  const handleDeleteCustomProses = (procToDelete: string) => {
+    // Prevent deleting if it is currently selected in the item being edited
+    if (selectedProses.includes(procToDelete)) {
+      alert('Tidak bisa menghapus proses yang sedang dipilih.');
+      return;
+    }
+    const updated = availableProses.filter(p => p !== procToDelete);
+    setAvailableProses(updated);
+    localStorage.setItem('available_proses_list', JSON.stringify(updated));
+  };
+
   // --- Customer Operations ---
   const handleSaveCustomer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -402,31 +436,65 @@ export default function MasterDataManager({
                   Alur Proses * <span className="font-medium text-slate-400 text-[10px] lowercase">(tap untuk pilih &amp; urutkan)</span>
                 </label>
 
-                {/* Pool of default processes */}
+                {/* Pool of default & custom processes */}
                 <div className="flex flex-wrap gap-1.5 py-2">
-                  {DEFAULT_PROSES.map((proc) => {
+                  {availableProses.map((proc) => {
                     const isSelected = selectedProses.includes(proc);
                     const position = selectedProses.indexOf(proc);
+                    const isDefault = DEFAULT_PROSES.includes(proc);
                     return (
-                      <button
-                        type="button"
-                        key={proc}
-                        onClick={() => handleToggleProsesSelection(proc)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 border cursor-pointer ${
-                          isSelected
-                            ? 'bg-ikea-blue text-white shadow-sm border-ikea-blue'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-transparent'
-                        }`}
-                      >
-                        {isSelected && (
-                          <span className="w-4 h-4 rounded-full bg-white text-ikea-blue text-[9px] flex items-center justify-center font-black">
-                            {position + 1}
-                          </span>
+                      <div key={proc} className="relative inline-block">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleProsesSelection(proc)}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1.5 border cursor-pointer ${
+                            isSelected
+                              ? 'bg-ikea-blue text-white shadow-sm border-ikea-blue'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-transparent'
+                          } ${!isDefault && !isSelected ? 'pr-7' : ''}`}
+                        >
+                          {isSelected && (
+                            <span className="w-4 h-4 rounded-full bg-white text-ikea-blue text-[9px] flex items-center justify-center font-black">
+                              {position + 1}
+                            </span>
+                          )}
+                          {proc}
+                        </button>
+                        {!isDefault && !isSelected && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCustomProses(proc);
+                            }}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-700 flex items-center justify-center text-[10px] font-black cursor-pointer transition-all"
+                            title="Hapus proses kustom"
+                          >
+                            ×
+                          </button>
                         )}
-                        {proc}
-                      </button>
+                      </div>
                     );
                   })}
+                </div>
+
+                {/* Add Custom Process Input */}
+                <div className="flex gap-2 items-center mt-1 bg-slate-50 border border-slate-200/50 p-2.5 rounded-2xl">
+                  <input
+                    type="text"
+                    placeholder="Tambah proses kustom... (misal: HEALER)"
+                    value={newProsesName}
+                    onChange={(e) => setNewProsesName(e.target.value)}
+                    className="flex-1 bg-white border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-rose-100 transition-all font-mono uppercase text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomProses}
+                    className="bg-gradient-to-b from-[#800412] to-[#5c030d] hover:from-[#9c0617] hover:to-[#7a0110] text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-rose-950/10 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={13} className="stroke-[2.5]" />
+                    Tambah
+                  </button>
                 </div>
 
                 {/* Ordered Processes layout */}

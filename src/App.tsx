@@ -205,9 +205,9 @@ export default function App() {
                   fill="url(#navbar-gradient)" />
             <defs>
               <linearGradient id="navbar-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#800412" />
-                <stop offset="15%" stop-color="#5c030d" />
-                <stop offset="100%" stop-color="#1c0003" />
+                <stop offset="0%" stopColor="#800412" />
+                <stop offset="15%" stopColor="#5c030d" />
+                <stop offset="100%" stopColor="#1c0003" />
               </linearGradient>
             </defs>
           </svg>
