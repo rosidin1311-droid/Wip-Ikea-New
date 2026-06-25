@@ -75,6 +75,34 @@ export default function App() {
     saveForecasts(updated);
   };
 
+  const handleUpdateTransactions = (updated: Transaction[]) => {
+    setTransactions(updated);
+    saveTransactions(updated);
+  };
+
+  // Reset WIP/Transactions logs
+  const handleResetWIPLogs = () => {
+    setTransactions([]);
+    saveTransactions([]);
+  };
+
+  // Restore everything from backup
+  const handleRestoreBackup = (
+    restoredCustomers: Customer[],
+    restoredItems: Item[],
+    restoredForecasts: Forecast[],
+    restoredTransactions: Transaction[]
+  ) => {
+    setCustomers(restoredCustomers);
+    saveCustomers(restoredCustomers);
+    setItems(restoredItems);
+    saveItems(restoredItems);
+    setForecasts(restoredForecasts);
+    saveForecasts(restoredForecasts);
+    setTransactions(restoredTransactions);
+    saveTransactions(restoredTransactions);
+  };
+
   // Callback to log transaction and auto-update stock if needed
   const handleAddTransaction = (newTx: Transaction, updatedStock?: { itemId: string; newStock: number }) => {
     const updatedTxs = [newTx, ...transactions];
@@ -175,8 +203,14 @@ export default function App() {
             <MasterDataManager
               customers={customers}
               items={items}
+              forecasts={forecasts}
+              transactions={transactions}
               onUpdateCustomers={handleUpdateCustomers}
               onUpdateItems={handleUpdateItems}
+              onUpdateForecasts={handleUpdateForecasts}
+              onUpdateTransactions={handleUpdateTransactions}
+              onResetWIPLogs={handleResetWIPLogs}
+              onRestoreBackup={handleRestoreBackup}
             />
           )}
 

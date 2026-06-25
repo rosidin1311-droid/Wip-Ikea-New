@@ -3,24 +3,41 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Customer, Item, DEFAULT_PROSES } from '../types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, Check, X, ToggleLeft, ToggleRight, Settings } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Customer, Item, Forecast, Transaction, DEFAULT_PROSES } from '../types';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, Check, X, ToggleLeft, ToggleRight, Settings, Download, Upload, RotateCw, Database, ShieldAlert, FileSpreadsheet } from 'lucide-react';
 
 interface MasterDataManagerProps {
   customers: Customer[];
   items: Item[];
+  forecasts: Forecast[];
+  transactions: Transaction[];
   onUpdateCustomers: (customers: Customer[]) => void;
   onUpdateItems: (items: Item[]) => void;
+  onUpdateForecasts: (forecasts: Forecast[]) => void;
+  onUpdateTransactions: (transactions: Transaction[]) => void;
+  onResetWIPLogs: () => void;
+  onRestoreBackup: (
+    customers: Customer[],
+    items: Item[],
+    forecasts: Forecast[],
+    transactions: Transaction[]
+  ) => void;
 }
 
 export default function MasterDataManager({
   customers,
   items,
+  forecasts,
+  transactions,
   onUpdateCustomers,
   onUpdateItems,
+  onUpdateForecasts,
+  onUpdateTransactions,
+  onResetWIPLogs,
+  onRestoreBackup,
 }: MasterDataManagerProps) {
-  const [subTab, setSubTab] = useState<'customer' | 'item'>('customer');
+  const [subTab, setSubTab] = useState<'customer' | 'item' | 'system'>('customer');
 
   // Customer State
   const [showCustForm, setShowCustForm] = useState(false);
@@ -69,6 +86,97 @@ export default function MasterDataManager({
     const updated = availableProses.filter(p => p !== procToDelete);
     setAvailableProses(updated);
     localStorage.setItem('available_proses_list', JSON.stringify(updated));
+  };
+
+  // Sync custom processes list when items prop updates
+  useEffect(() => {
+    const saved = localStorage.getItem('available_proses_list');
+    const baseList = saved ? JSON.parse(saved) : [...DEFAULT_PROSES];
+    const itemProcesses = items.flatMap(i => i.alur_proses || []);
+    const uniqueMerged = Array.from(new Set([...baseList, ...itemProcesses]));
+    setAvailableProses(uniqueMerged);
+  }, [items]);
+
+  // --- Backup & Restore & Clear Operations ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreSuccess, setRestoreSuccess] = useState(false);
+  const [isWIPCleared, setIsWIPCleared] = useState(false);
+
+  const handleDownloadBackup = () => {
+    const backupData = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      customers,
+      items,
+      forecasts,
+      transactions,
+      available_proses: availableProses
+    };
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `IKEA_TRACKER_BACKUP_${dateStr}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUploadJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRestoreError(null);
+    setRestoreSuccess(false);
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        if (!event.target?.result) throw new Error('File tidak dapat dibaca.');
+        const json = JSON.parse(event.target.result as string);
+
+        // Validate structure
+        if (!Array.isArray(json.customers) || !Array.isArray(json.items)) {
+          throw new Error('Format backup tidak valid. Harus memiliki array customer dan item.');
+        }
+
+        const importedCustomers = json.customers;
+        const importedItems = json.items;
+        const importedForecasts = Array.isArray(json.forecasts) ? json.forecasts : [];
+        const importedTransactions = Array.isArray(json.transactions) ? json.transactions : [];
+        const importedProses = Array.isArray(json.available_proses) ? json.available_proses : [];
+
+        // Apply backup restore via props
+        onRestoreBackup(importedCustomers, importedItems, importedForecasts, importedTransactions);
+
+        // Save imported custom process list
+        if (importedProses.length > 0) {
+          localStorage.setItem('available_proses_list', JSON.stringify(importedProses));
+          setAvailableProses(importedProses);
+        }
+
+        setRestoreSuccess(true);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } catch (err: any) {
+        setRestoreError(err.message || 'Format JSON rusak atau tidak valid.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleClearWIPData = () => {
+    const confirmClear = confirm(
+      "PERINGATAN KERAS!\n\nApakah Anda yakin ingin BERSIHKAN SEMUA DATA LAPORAN WIP?\n\nTindakan ini akan mengosongkan seluruh log transaksi masuk/keluar di semua line proses. Posisi WIP di lantai produksi akan kembali ke 0 (Kosong).\n\nData Master (Customer, Item, dan Forecast) akan tetap utuh."
+    );
+    if (confirmClear) {
+      onResetWIPLogs();
+      setIsWIPCleared(true);
+      setTimeout(() => setIsWIPCleared(false), 3000);
+    }
   };
 
   // --- Customer Operations ---
@@ -205,23 +313,33 @@ export default function MasterDataManager({
       <div className="flex bg-slate-200/50 border border-slate-200/40 p-1 rounded-xl mb-6">
         <button
           onClick={() => { setSubTab('customer'); setShowCustForm(false); }}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all bento-tactile cursor-pointer ${
+          className={`flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bento-tactile cursor-pointer ${
             subTab === 'customer'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-705'
+              ? 'bg-[#800412] text-white shadow-md'
+              : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Customer
         </button>
         <button
           onClick={() => { setSubTab('item'); setShowItemForm(false); }}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all bento-tactile cursor-pointer ${
+          className={`flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bento-tactile cursor-pointer ${
             subTab === 'item'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-705'
+              ? 'bg-[#800412] text-white shadow-md'
+              : 'text-slate-500 hover:text-slate-700'
           }`}
         >
-          Item &amp; Alur Proses
+          Item &amp; Proses
+        </button>
+        <button
+          onClick={() => { setSubTab('system'); }}
+          className={`flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bento-tactile cursor-pointer ${
+            subTab === 'system'
+              ? 'bg-[#800412] text-white shadow-md'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Backup &amp; Reset
         </button>
       </div>
 
@@ -623,6 +741,136 @@ export default function MasterDataManager({
                 Belum ada item. Silakan tambahkan item baru.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* --- SYSTEM & BACKUP SECTION --- */}
+      {subTab === 'system' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header */}
+          <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
+            <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-10">
+              <Database size={150} />
+            </div>
+            <p className="text-[10px] text-rose-300 font-extrabold uppercase tracking-widest font-mono">PEMELIHARAAN SYSTEM</p>
+            <h3 className="text-lg font-black tracking-tight font-display mt-1">Backup &amp; Reset Data</h3>
+            <p className="text-xs text-rose-100/70 mt-1 leading-relaxed">
+              Kelola penyimpanan data, lakukan pencadangan, dan bersihkan laporan WIP untuk memperbarui kondisi lantai produksi yang aktif.
+            </p>
+          </div>
+
+          {/* Section 1: Reset WIP */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <RotateCw size={18} className="animate-spin-slow" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-900 tracking-tight">Bersihkan Laporan WIP</h4>
+                <p className="text-xs text-slate-500 leading-normal">
+                  Menghapus semua log transaksi masuk/keluar pada line proses. Tindakan ini akan mereset seluruh posisi WIP aktif menjadi <strong>0 (NOL)</strong> di lantai produksi.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-3.5 flex gap-2.5 items-start">
+              <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                <strong>Pemberitahuan:</strong> Data master seperti Daftar Customer, Spesifikasi Item, Alur Proses, dan Target Forecast/Delivery tetap aman dan <strong>TIDAK</strong> akan terhapus.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={handleClearWIPData}
+                className="bg-gradient-to-b from-[#bd1326] to-[#800412] hover:from-[#d61a2f] hover:to-[#9c0617] text-white px-5 py-3 rounded-2xl text-xs font-black shadow-lg shadow-rose-950/10 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <RotateCw size={14} className="stroke-[2.5]" />
+                Bersihkan Laporan WIP Sekarang
+              </button>
+
+              {isWIPCleared && (
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full border border-emerald-100 animate-pulse">
+                  <Check size={14} className="stroke-[3]" />
+                  Berhasil Bersih!
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Section 2: Backup & Restore */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#ffe4e6] border border-rose-100 flex items-center justify-center text-[#800412] shrink-0">
+                <Database size={18} />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-900 tracking-tight">Cadangkan &amp; Pulihkan Data (Backup / Restore)</h4>
+                <p className="text-xs text-slate-500 leading-normal">
+                  Simpan data Anda ke dalam file di perangkat pribadi dan pulihkan kembali kapan saja di masa depan untuk memperbarui database.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3.5 pt-2">
+              {/* Export/Backup Button */}
+              <div className="border border-slate-200/60 rounded-2xl p-4 flex items-center justify-between bg-slate-50">
+                <div>
+                  <h5 className="text-xs font-bold text-slate-800">Cadangkan Data (Backup)</h5>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Unduh data tracker sebagai file cadangan JSON</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadBackup}
+                  className="bg-slate-950 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download size={14} />
+                  Download Backup
+                </button>
+              </div>
+
+              {/* Restore/Import Input */}
+              <div className="border border-slate-200/60 rounded-2xl p-4 bg-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-800">Pulihkan Data (Restore)</h5>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Unggah file JSON backup untuk memperbarui database</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-gradient-to-b from-[#800412] to-[#5c030d] hover:from-[#9c0617] hover:to-[#7a0110] text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload size={14} />
+                    Pilih File JSON
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleUploadJson}
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Status alerts */}
+                {restoreSuccess && (
+                  <div className="bg-emerald-50 border border-emerald-200/50 text-emerald-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                    <Check size={16} className="text-emerald-600 shrink-0 stroke-[3]" />
+                    <span>Data berhasil dipulihkan dari file backup! Halaman akan otomatis diperbarui.</span>
+                  </div>
+                )}
+
+                {restoreError && (
+                  <div className="bg-rose-50 border border-rose-200/50 text-rose-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                    <X size={16} className="text-rose-600 shrink-0 stroke-[3]" />
+                    <span>Gagal memulihkan: {restoreError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
