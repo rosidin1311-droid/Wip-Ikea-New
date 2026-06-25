@@ -31,11 +31,11 @@ import ShiftReport from './components/ShiftReport';
 
 // Lucide Icons
 import {
-  LayoutDashboard,
-  Layers,
-  Calendar,
-  FileSpreadsheet,
-  FileCheck,
+  Home,
+  CircleDollarSign,
+  Sparkles,
+  CreditCard,
+  Menu,
 } from 'lucide-react';
 
 export default function App() {
@@ -116,8 +116,8 @@ export default function App() {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-slate-100/50 flex justify-center md:py-8">
-      <div className="w-full max-w-md bg-slate-50 min-h-screen md:min-h-[850px] md:rounded-3xl shadow-2xl relative flex flex-col border border-slate-200/50 overflow-hidden">
+    <div className="h-screen md:h-auto min-h-screen bg-slate-100/50 flex justify-center md:items-center md:py-8 overflow-hidden">
+      <div className="w-full max-w-md bg-slate-50 h-full md:h-[850px] md:max-h-[850px] md:rounded-3xl shadow-2xl relative flex flex-col border border-slate-200/50 overflow-hidden">
         
         {/* Top Bento-style Header bar (Premium layout, zero telemetry logs) */}
         <header className="bg-white border-b border-slate-200/60 px-6 py-4 flex justify-between items-center shrink-0">
@@ -137,7 +137,7 @@ export default function App() {
         </header>
 
         {/* Core Content View */}
-        <main className="flex-1 overflow-y-auto px-5 pt-5 pb-24">
+        <main className="flex-1 overflow-y-auto px-5 pt-5 pb-28">
           {activeTab === 'dashboard' && (
             <Dashboard
               customers={customers}
@@ -190,58 +190,92 @@ export default function App() {
           )}
         </main>
 
-        {/* Bottom Tactile Navigation Bar - Premium Bento Feel */}
-        <nav className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-3.5 px-3 flex justify-around items-center shrink-0 shadow-xl z-50">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center justify-center flex-1 transition-all bento-tactile ${
-              activeTab === 'dashboard' ? 'text-ikea-blue font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <LayoutDashboard size={19} className={activeTab === 'dashboard' ? 'stroke-[2.5px]' : 'stroke-2'} />
-            <span className="text-[9px] mt-1.5 font-bold tracking-tight uppercase font-display">Dashboard</span>
-          </button>
+        {/* Bottom Tactile Navigation Bar - Curved Crimson Theme matching user's reference */}
+        <div className="absolute bottom-0 left-0 right-0 h-[84px] z-50 select-none">
+          {/* Custom SVG Background with Center Dip Curve */}
+          <svg viewBox="0 0 400 84" preserveAspectRatio="none" className="absolute inset-0 w-full h-full -z-10 drop-shadow-[0_-5px_15px_rgba(0,0,0,0.3)]">
+            <path d="M 0,22 
+                     L 135,22 
+                     C 155,22 165,60 200,60 
+                     C 235,60 245,22 265,22 
+                     L 400,22 
+                     L 400,84 
+                     L 0,84 
+                     Z" 
+                  fill="url(#navbar-gradient)" />
+            <defs>
+              <linearGradient id="navbar-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#800412" />
+                <stop offset="15%" stop-color="#5c030d" />
+                <stop offset="100%" stop-color="#1c0003" />
+              </linearGradient>
+            </defs>
+          </svg>
 
-          <button
-            onClick={() => handleNavigateToTab('input')}
-            className={`flex flex-col items-center justify-center flex-1 transition-all bento-tactile ${
-              activeTab === 'input' ? 'text-ikea-blue font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <Layers size={19} className={activeTab === 'input' ? 'stroke-[2.5px]' : 'stroke-2'} />
-            <span className="text-[9px] mt-1.5 font-bold tracking-tight uppercase font-display">Input WIP</span>
-          </button>
+          {/* Grid Layout of 5 Columns */}
+          <div className="grid grid-cols-5 h-full pt-[22px]">
+            {/* Slot 1: Home */}
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex flex-col items-center justify-center pb-2.5 transition-all bento-tactile cursor-pointer ${
+                activeTab === 'dashboard' ? 'text-white scale-105 font-bold' : 'text-rose-200/50 hover:text-white/90'
+              }`}
+            >
+              <Home size={21} className={activeTab === 'dashboard' ? 'stroke-[2.5px]' : 'stroke-2'} />
+              <span className="text-[10px] mt-1 font-bold tracking-tight">Home</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('forecast')}
-            className={`flex flex-col items-center justify-center flex-1 transition-all bento-tactile ${
-              activeTab === 'forecast' ? 'text-ikea-blue font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <Calendar size={19} className={activeTab === 'forecast' ? 'stroke-[2.5px]' : 'stroke-2'} />
-            <span className="text-[9px] mt-1.5 font-bold tracking-tight uppercase font-display">Forecast</span>
-          </button>
+            {/* Slot 2: Forecast (Deposit style icon, Coin/Target) */}
+            <button
+              onClick={() => setActiveTab('forecast')}
+              className={`flex flex-col items-center justify-center pb-2.5 transition-all bento-tactile cursor-pointer ${
+                activeTab === 'forecast' ? 'text-white scale-105 font-bold' : 'text-rose-200/50 hover:text-white/90'
+              }`}
+            >
+              <CircleDollarSign size={21} className={activeTab === 'forecast' ? 'stroke-[2.5px]' : 'stroke-2'} />
+              <span className="text-[10px] mt-1 font-bold tracking-tight">Forecast</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('report')}
-            className={`flex flex-col items-center justify-center flex-1 transition-all bento-tactile ${
-              activeTab === 'report' ? 'text-ikea-blue font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <FileCheck size={19} className={activeTab === 'report' ? 'stroke-[2.5px]' : 'stroke-2'} />
-            <span className="text-[9px] mt-1.5 font-bold tracking-tight uppercase font-display">Laporan</span>
-          </button>
+            {/* Slot 3: Center Floating Button with Sparkle (Promosi style) */}
+            <div className="relative flex flex-col items-center justify-end pb-2.5">
+              <button
+                onClick={() => handleNavigateToTab('input')}
+                className={`absolute -top-[26px] w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all duration-200 shadow-xl border-4 border-[#240104] bento-tactile cursor-pointer ${
+                  activeTab === 'input'
+                    ? 'bg-gradient-to-b from-[#bd1326] to-[#7a0110] text-white scale-110 ring-2 ring-rose-400/40 shadow-rose-950/50'
+                    : 'bg-gradient-to-b from-[#800412] to-[#3a0106] text-white/90 hover:from-[#9c0617] hover:to-[#4a0109] shadow-black/40'
+                }`}
+              >
+                <Sparkles size={22} className={`${activeTab === 'input' ? 'animate-pulse text-white' : 'text-rose-100'}`} />
+              </button>
+              <span className={`text-[10px] font-bold tracking-tight ${activeTab === 'input' ? 'text-white' : 'text-rose-200/50'}`}>
+                Input WIP
+              </span>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('master')}
-            className={`flex flex-col items-center justify-center flex-1 transition-all bento-tactile ${
-              activeTab === 'master' ? 'text-ikea-blue font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <FileSpreadsheet size={19} className={activeTab === 'master' ? 'stroke-[2.5px]' : 'stroke-2'} />
-            <span className="text-[9px] mt-1.5 font-bold tracking-tight uppercase font-display">Master</span>
-          </button>
-        </nav>
+            {/* Slot 4: Laporan (Withdraw style icon, Card/Clipboard) */}
+            <button
+              onClick={() => setActiveTab('report')}
+              className={`flex flex-col items-center justify-center pb-2.5 transition-all bento-tactile cursor-pointer ${
+                activeTab === 'report' ? 'text-white scale-105 font-bold' : 'text-rose-200/50 hover:text-white/90'
+              }`}
+            >
+              <CreditCard size={21} className={activeTab === 'report' ? 'stroke-[2.5px]' : 'stroke-2'} />
+              <span className="text-[10px] mt-1 font-bold tracking-tight">Laporan</span>
+            </button>
+
+            {/* Slot 5: Master (Menu style icon, Hamburger menu) */}
+            <button
+              onClick={() => setActiveTab('master')}
+              className={`flex flex-col items-center justify-center pb-2.5 transition-all bento-tactile cursor-pointer ${
+                activeTab === 'master' ? 'text-white scale-105 font-bold' : 'text-rose-200/50 hover:text-white/90'
+              }`}
+            >
+              <Menu size={21} className={activeTab === 'master' ? 'stroke-[2.5px]' : 'stroke-2'} />
+              <span className="text-[10px] mt-1 font-bold tracking-tight">Master</span>
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>

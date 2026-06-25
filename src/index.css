@@ -6,18 +6,18 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Re-mapping IKEA tokens to gorgeous Bento Grid Indigo & Amber palette for seamless update */
-  --color-ikea-blue: #4f46e5;
-  --color-ikea-yellow: #f59e0b;
-  --color-industrial-slate: #0f172a;
-  --color-industrial-amber: #d97706;
+  /* Re-mapping core tokens to a gorgeous premium dark Crimson & Burgundy palette */
+  --color-ikea-blue: #7a0110;
+  --color-ikea-yellow: #d97706;
+  --color-industrial-slate: #1e1b1b;
+  --color-industrial-amber: #b45309;
 
-  /* Bento specific colors */
-  --color-bento-bg: #f8fafc;
+  /* Bento specific colors in line with dark crimson theme */
+  --color-bento-bg: #fbf9f9;
   --color-bento-card: #ffffff;
-  --color-bento-indigo: #4f46e5;
-  --color-bento-indigo-light: #e0e7ff;
-  --color-bento-slate: #0f172a;
+  --color-bento-indigo: #7a0110;
+  --color-bento-indigo-light: #ffe4e6;
+  --color-bento-slate: #1e1b1b;
 }
 
 /* Base resets or touch targets for mobile usability */

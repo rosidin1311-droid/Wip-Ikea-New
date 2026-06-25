@@ -94,11 +94,11 @@ export default function Dashboard({
       <div className="grid grid-cols-2 gap-3.5 mb-6">
         <button
           onClick={() => onNavigateToTab('input')}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white p-5 rounded-[24px] font-bold text-xs flex flex-col justify-between h-[135px] shadow-lg shadow-indigo-600/10 active:scale-95 transition-all text-left cursor-pointer border border-indigo-500/10"
+          className="bg-gradient-to-br from-[#800412] to-[#5c030d] hover:from-[#9c0617] hover:to-[#7a0110] text-white p-5 rounded-[24px] font-bold text-xs flex flex-col justify-between h-[135px] shadow-lg shadow-rose-950/20 active:scale-95 transition-all text-left cursor-pointer border border-[#800412]/20"
         >
-          <Layers size={22} className="text-white shrink-0" />
+          <Layers size={22} className="text-white shrink-0 animate-pulse" />
           <div>
-            <p className="text-[9px] text-indigo-200 font-extrabold tracking-widest uppercase">LOG MASUK/KELUAR</p>
+            <p className="text-[9px] text-rose-200/90 font-extrabold tracking-widest uppercase">LOG MASUK/KELUAR</p>
             <p className="mt-1 font-display text-sm font-black tracking-tight leading-none">Input WIP Cepat</p>
           </div>
         </button>
