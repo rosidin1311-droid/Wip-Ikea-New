@@ -43,6 +43,7 @@ export default function ForecastManager({
 
   // Form states
   const [selectedCustId, setSelectedCustId] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
   const [tglDelivery, setTglDelivery] = useState('');
   const [qtyDelivery, setQtyDelivery] = useState<number | ''>('');
@@ -51,6 +52,14 @@ export default function ForecastManager({
   // Active customers only
   const activeCustomers = customers.filter(c => c.status);
   const filteredItems = items.filter(i => i.customer_id === selectedCustId);
+
+  // Get unique model names for the selected customer
+  const uniqueModels = Array.from(
+    new Set(filteredItems.map(i => i.model))
+  ).sort();
+
+  // Filter items based on selected customer and model category
+  const filteredItemsByModel = filteredItems.filter(i => i.model === selectedModel);
 
   // Auto-calculated fields when item or quantity changes
   const selectedItem = items.find(i => i.id === selectedItemId);
@@ -68,7 +77,49 @@ export default function ForecastManager({
   // Handle customer dropdown change
   const handleCustomerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCustId(e.target.value);
+    setSelectedModel('');
     setSelectedItemId('');
+  };
+
+  // Handle model dropdown change
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedModel(e.target.value);
+    setSelectedItemId('');
+  };
+
+  // Web Audio API tactile feedback sound (Crisp double beep for scanners/warehouse style)
+  const playSuccessSound = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // First crisp beep
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1000, ctx.currentTime); // Standard 1kHz alert tone
+      gain1.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.08);
+      
+      // Second pitch-up tactile confirmation beep
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1400, ctx.currentTime + 0.07); // Ascending confirmation pitch
+      gain2.gain.setValueAtTime(0.08, ctx.currentTime + 0.07);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.17);
+      osc2.start(ctx.currentTime + 0.07);
+      osc2.stop(ctx.currentTime + 0.17);
+    } catch (error) {
+      console.warn("Audio feedback context failed to initialize:", error);
+    }
   };
 
   const handleSaveForecast = (e: React.FormEvent) => {
@@ -99,8 +150,12 @@ export default function ForecastManager({
 
     onUpdateForecasts([newForecast, ...forecasts]);
     
+    // Play subtle high-quality scan beep
+    playSuccessSound();
+
     // Reset form
     setSelectedCustId('');
+    setSelectedModel('');
     setSelectedItemId('');
     setTglDelivery('');
     setQtyDelivery('');
@@ -213,18 +268,18 @@ export default function ForecastManager({
 
       {/* Input Form */}
       {showForm && (
-        <form onSubmit={handleSaveForecast} className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-4 mb-6 animate-fadeIn">
-          <h3 className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-150 inline-block uppercase tracking-wider mb-2">
-            Tambah Forecast Delivery Baru
-          </h3>
-
-          {/* Customer */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Customer *</label>
+        <form onSubmit={handleSaveForecast} className="space-y-5 mb-6 animate-fadeIn">
+          {/* Step 1: Customer Dropdown */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-2.5">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[9px] font-extrabold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-150">LANGKAH 1</span>
+              <span className="text-[10px] text-rose-500 font-extrabold tracking-wide uppercase font-sans">* Wajib</span>
+            </div>
+            <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Pilih Customer</label>
             <select
               value={selectedCustId}
               onChange={handleCustomerChange}
-              className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-semibold text-slate-800"
+              className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 focus:bg-white font-semibold text-slate-800 transition-all cursor-pointer"
               required
             >
               <option value="">-- Pilih Customer --</option>
@@ -234,99 +289,145 @@ export default function ForecastManager({
             </select>
           </div>
 
-          {/* Item */}
+          {/* Step 2: Kategori Model */}
           {selectedCustId && (
-            <div className="space-y-1.5 animate-fadeIn">
-              <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Item / Model *</label>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-2.5 animate-fadeIn">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[9px] font-extrabold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-150">LANGKAH 2</span>
+                <span className="text-[10px] text-rose-500 font-extrabold tracking-wide uppercase font-sans">* Wajib</span>
+              </div>
+              <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Kategori Model</label>
+              <select
+                value={selectedModel}
+                onChange={handleModelChange}
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 focus:bg-white font-semibold text-slate-800 transition-all cursor-pointer"
+                required
+              >
+                <option value="">-- Pilih Kategori Model --</option>
+                {uniqueModels.map(m => {
+                  const count = filteredItems.filter(i => i.model === m).length;
+                  return (
+                    <option key={m} value={m}>
+                      {m} ({count} Part Number)
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+
+          {/* Step 3: Nomor Part */}
+          {selectedModel && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-2.5 animate-fadeIn">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[9px] font-extrabold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-150">LANGKAH 3</span>
+                <span className="text-[10px] text-rose-500 font-extrabold tracking-wide uppercase font-sans">* Wajib</span>
+              </div>
+              <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Nomor Part ({selectedModel})</label>
               <select
                 value={selectedItemId}
                 onChange={(e) => setSelectedItemId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-semibold text-slate-800"
+                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 focus:bg-white font-semibold text-slate-800 transition-all cursor-pointer"
                 required
               >
-                <option value="">-- Pilih Item --</option>
-                {filteredItems.map(i => (
-                  <option key={i.id} value={i.id}>{i.model} ({i.part_number})</option>
+                <option value="">-- Pilih Nomor Part --</option>
+                {filteredItemsByModel.map(i => (
+                  <option key={i.id} value={i.id}>
+                    {i.part_number} (Stok Ready: {i.stok_ready.toLocaleString()} pcs)
+                  </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Qty & Date */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Qty Delivery (pcs) *</label>
-              <input
-                type="number"
-                placeholder="Jumlah kirim..."
-                value={qtyDelivery}
-                onChange={(e) => setQtyDelivery(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 0))}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-extrabold font-mono text-slate-800"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Tgl Delivery *</label>
-              <input
-                type="date"
-                value={tglDelivery}
-                onChange={(e) => setTglDelivery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-mono text-slate-800"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Auto fill status info */}
+          {/* Step 4: Detail Delivery Target */}
           {selectedItemId && (
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/50 space-y-2 text-xs">
-              <div className="flex justify-between font-medium">
-                <span className="text-slate-500">Stok Ready saat ini:</span>
-                <span className="font-extrabold text-slate-800 font-mono">{stokAwal.toLocaleString()} pcs</span>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm space-y-4 animate-fadeIn">
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-extrabold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-150">LANGKAH 4</span>
+                <span className="text-[10px] text-rose-500 font-extrabold tracking-wide uppercase font-sans">* Wajib</span>
               </div>
-              {qtyDelivery !== '' && (
-                <div className="flex justify-between border-t border-slate-200/40 pt-2">
-                  <span className="text-slate-500">Status Selisih (Remain):</span>
-                  {stokAwal - Number(qtyDelivery) >= 0 ? (
-                    <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-150">+{ (stokAwal - Number(qtyDelivery)).toLocaleString() } pcs (Cukup)</span>
-                  ) : (
-                    <span className="font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-150 font-mono">
-                      { (stokAwal - Number(qtyDelivery)).toLocaleString() } pcs (Kurang)
-                    </span>
-                  )}
+
+              {/* Qty & Date Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Qty Delivery (pcs) *</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Jumlah kirim..."
+                    value={qtyDelivery}
+                    onChange={(e) => setQtyDelivery(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 0))}
+                    className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 focus:bg-white transition-all font-extrabold font-mono text-slate-800"
+                    required
+                  />
                 </div>
-              )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Tgl Delivery *</label>
+                  <input
+                    type="date"
+                    value={tglDelivery}
+                    onChange={(e) => setTglDelivery(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 focus:bg-white transition-all font-mono text-slate-800"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Sisa Stok / Stock status live calculation card */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/50 space-y-2 text-xs">
+                <div className="flex justify-between font-medium">
+                  <span className="text-slate-500 font-sans">Stok Ready saat ini:</span>
+                  <span className="font-extrabold text-slate-800 font-mono">{stokAwal.toLocaleString()} pcs</span>
+                </div>
+                {qtyDelivery !== '' && (
+                  <div className="flex justify-between border-t border-slate-200/40 pt-2 font-sans">
+                    <span className="text-slate-500">Status Selisih (Remain):</span>
+                    {stokAwal - Number(qtyDelivery) >= 0 ? (
+                      <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-150 font-mono">
+                        +{ (stokAwal - Number(qtyDelivery)).toLocaleString() } pcs (Cukup)
+                      </span>
+                    ) : (
+                      <span className="font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-150 font-mono">
+                        { (stokAwal - Number(qtyDelivery)).toLocaleString() } pcs (Kurang)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Keterangan */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Keterangan / No. PO</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: No. PO 4300923, Urgent Kirim Pagi"
+                  value={keterangan}
+                  onChange={(e) => setKeterangan(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 focus:bg-white transition-all text-slate-800 font-semibold"
+                />
+              </div>
+
+              {/* Form buttons */}
+              <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-ikea-blue hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 transition-all active:scale-95 cursor-pointer"
+                >
+                  Simpan Target
+                </button>
+              </div>
             </div>
           )}
-
-          {/* Keterangan */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Keterangan / No. PO</label>
-            <input
-              type="text"
-              placeholder="Contoh: No. PO 4300923, Urgent Kirim Pagi"
-              value={keterangan}
-              onChange={(e) => setKeterangan(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all text-slate-800"
-            />
-          </div>
-
-          <div className="flex gap-2 justify-end pt-2">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold cursor-pointer"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-ikea-blue hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 cursor-pointer"
-            >
-              Simpan Target
-            </button>
-          </div>
         </form>
       )}
 
