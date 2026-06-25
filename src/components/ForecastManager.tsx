@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Customer, Item, Forecast, ForecastStatus } from '../types';
-import { Plus, Calendar, AlertCircle, CheckCircle, Archive, Trash2, ArrowUpRight, HelpCircle } from 'lucide-react';
+import { Plus, Calendar, AlertCircle, CheckCircle, Archive, Trash2, ArrowUpRight, HelpCircle, X } from 'lucide-react';
 
 interface ForecastManagerProps {
   customers: Customer[];
@@ -24,6 +24,20 @@ export default function ForecastManager({
 }: ForecastManagerProps) {
   const [showForm, setShowForm] = useState(false);
   
+  // Custom dialog system for safe usage in sandbox iframe
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: '',
+  });
+
   // Filter for active/archived forecasts
   const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ARCHIVED_CLOSED'>('ACTIVE');
 
@@ -60,7 +74,12 @@ export default function ForecastManager({
   const handleSaveForecast = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId || !tglDelivery || !qtyDelivery) {
-      alert('Mohon lengkapi semua field wajib.');
+      setDialog({
+        isOpen: true,
+        type: 'alert',
+        title: 'Formulir Belum Lengkap',
+        message: 'Mohon lengkapi semua field wajib.'
+      });
       return;
     }
 
@@ -88,13 +107,24 @@ export default function ForecastManager({
     setKeterangan('');
     setShowForm(false);
     
-    alert('Forecast berhasil disimpan!');
+    setDialog({
+      isOpen: true,
+      type: 'success',
+      title: 'Disimpan',
+      message: 'Forecast berhasil disimpan!'
+    });
   };
 
   const handleDeleteForecast = (id: string) => {
-    if (confirm('Apakah Anda yakin ingin menghapus forecast ini?')) {
-      onUpdateForecasts(forecasts.filter(f => f.id !== id));
-    }
+    setDialog({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Hapus Forecast',
+      message: 'Apakah Anda yakin ingin menghapus target forecast ini? Tindakan ini tidak dapat dibatalkan.',
+      onConfirm: () => {
+        onUpdateForecasts(forecasts.filter(f => f.id !== id));
+      }
+    });
   };
 
   // Close/Execute Delivery logic
@@ -105,34 +135,45 @@ export default function ForecastManager({
     const shippedQty = forecast.qty;
     const currentStock = item.stok_ready;
     
-    let confirmMsg = `Kirim delivery untuk model ${item.model} sejumlah ${shippedQty.toLocaleString()} pcs?\n\n`;
+    let messageBody = `Kirim delivery untuk model ${item.model} sejumlah ${shippedQty.toLocaleString()} pcs?\n\n`;
     
     if (currentStock < shippedQty) {
-      confirmMsg += `⚠️ PERINGATAN: Stok ready saat ini (${currentStock.toLocaleString()} pcs) KURANG dari jumlah delivery (${shippedQty.toLocaleString()} pcs).\n`;
-      confirmMsg += `Jika dilanjutkan, stok akan berkurang dan bernilai negatif, atau Anda bisa mencatat WIP sisa terlebih dahulu.\n\n`;
+      messageBody += `⚠️ PERINGATAN: Stok ready saat ini (${currentStock.toLocaleString()} pcs) KURANG dari jumlah delivery (${shippedQty.toLocaleString()} pcs).\n`;
+      messageBody += `Jika dilanjutkan, stok akan berkurang dan bernilai negatif.\n\n`;
     } else {
-      confirmMsg += `Stok ready saat ini: ${currentStock.toLocaleString()} pcs\n`;
-      confirmMsg += `Stok setelah kirim: ${(currentStock - shippedQty).toLocaleString()} pcs (Sisa sisa tersimpan)\n\n`;
+      messageBody += `Stok ready saat ini: ${currentStock.toLocaleString()} pcs\n`;
+      messageBody += `Stok setelah kirim: ${(currentStock - shippedQty).toLocaleString()} pcs (Sisa stok tersimpan)\n\n`;
     }
     
-    confirmMsg += `Apakah Anda ingin melanjutkan pengiriman dan menutup (CLOSE) forecast ini?`;
+    messageBody += `Apakah Anda ingin melanjutkan pengiriman dan menutup (CLOSE) forecast ini?`;
 
-    if (confirm(confirmMsg)) {
-      // 1. Decrement item ready stock by shipped quantity
-      const updatedStock = Math.max(0, currentStock - shippedQty); // prevent negative unless they really forced it or keep it at 0
-      const updatedItems = items.map(i => 
-        i.id === item.id ? { ...i, stok_ready: updatedStock } : i
-      );
-      onUpdateItems(updatedItems);
+    setDialog({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Kirim & Selesaikan Delivery',
+      message: messageBody,
+      onConfirm: () => {
+        // 1. Decrement item ready stock by shipped quantity
+        const updatedStock = Math.max(0, currentStock - shippedQty); // prevent negative unless they really forced it or keep it at 0
+        const updatedItems = items.map(i => 
+          i.id === item.id ? { ...i, stok_ready: updatedStock } : i
+        );
+        onUpdateItems(updatedItems);
 
-      // 2. Mark forecast as CLOSED
-      const updatedForecasts = forecasts.map(f =>
-        f.id === forecast.id ? { ...f, status: 'CLOSED' as ForecastStatus } : f
-      );
-      onUpdateForecasts(updatedForecasts);
+        // 2. Mark forecast as CLOSED
+        const updatedForecasts = forecasts.map(f =>
+          f.id === forecast.id ? { ...f, status: 'CLOSED' as ForecastStatus } : f
+        );
+        onUpdateForecasts(updatedForecasts);
 
-      alert(`Delivery berhasil dikirim!\nStok ${item.model} sekarang: ${updatedStock.toLocaleString()} pcs.\nForecast ini telah ditutup (CLOSED).`);
-    }
+        setDialog({
+          isOpen: true,
+          type: 'success',
+          title: 'Pengiriman Berhasil',
+          message: `Delivery berhasil dikirim!\nStok ${item.model} sekarang: ${updatedStock.toLocaleString()} pcs.\nForecast ini telah ditutup (CLOSED).`
+        });
+      }
+    });
   };
 
   // Archive forecast (just mark as ARCHIVED)
@@ -453,6 +494,90 @@ export default function ForecastManager({
           </p>
         </div>
       </div>
+
+      {/* Custom Dialog Modal (Guarantees functional alerts & confirms inside sandboxed iframe) */}
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" 
+            onClick={() => {
+              if (dialog.type !== 'confirm') {
+                setDialog(prev => ({ ...prev, isOpen: false }));
+              }
+            }}
+          />
+          
+          {/* Modal Content */}
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl relative z-10 border border-slate-100 animate-scaleUp">
+            <button 
+              onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-full hover:bg-slate-50 cursor-pointer"
+            >
+              <X size={14} className="stroke-[2.5]" />
+            </button>
+            
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center">
+                {dialog.type === 'confirm' ? (
+                  <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                    <Trash2 size={24} />
+                  </div>
+                ) : dialog.type === 'success' ? (
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <CheckCircle size={24} />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                    <AlertCircle size={24} />
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-1.5">
+                <h3 className="text-base font-black text-slate-900 font-display">
+                  {dialog.title}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium whitespace-pre-wrap leading-relaxed">
+                  {dialog.message}
+                </p>
+              </div>
+              
+              <div className="flex gap-2.5 pt-2">
+                {dialog.type === 'confirm' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (dialog.onConfirm) dialog.onConfirm();
+                        setDialog(prev => ({ ...prev, isOpen: false }));
+                      }}
+                      className="flex-1 py-2.5 bg-[#800412] hover:bg-[#a00618] text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/10 transition-all active:scale-95 cursor-pointer"
+                    >
+                      Ya, Lanjutkan
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))}
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                  >
+                    Mengerti
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
