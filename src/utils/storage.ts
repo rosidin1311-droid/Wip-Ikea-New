@@ -259,6 +259,9 @@ export function calculateWIP(transactions: Transaction[], itemId: string, proces
         totalMasuk += tx.qty;
       } else if (tx.aksi === 'KELUAR') {
         totalKeluar += tx.qty;
+        if (tx.qty_ng) {
+          totalKeluar += tx.qty_ng;
+        }
       }
     }
   }

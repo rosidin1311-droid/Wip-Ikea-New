@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, Item, Forecast, Transaction } from '../types';
 import { calculateWIP, calculateTotalWIP } from '../utils/storage';
-import { Calendar, Clipboard, Check, RefreshCw, AlertTriangle, Users, Box, Layers, Printer, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { Calendar, Clipboard, Check, RefreshCw, AlertTriangle, Users, Box, Layers, Printer, Search, ToggleLeft, ToggleRight, X, ClipboardList } from 'lucide-react';
 
 interface ShiftReportProps {
   customers: Customer[];
@@ -110,6 +110,29 @@ export default function ShiftReport({
 
   const processSummary = getProcessSummary();
 
+  // 2.5 Filter transactions for this shift
+  const shiftTransactions = transactions.filter(tx => {
+    const txDate = tx.timestamp.split('T')[0];
+    if (txDate !== reportDate) return false;
+
+    // Shift Hour match
+    const hour = new Date(tx.timestamp).getHours();
+    let txShift = '';
+    if (hour >= 7 && hour < 15) {
+      txShift = 'PAGI (Shift 1)';
+    } else if (hour >= 15 && hour < 23) {
+      txShift = 'SIANG (Shift 2)';
+    } else {
+      txShift = 'MALAM (Shift 3)';
+    }
+
+    return txShift === shift;
+  });
+
+  // Calculate shift totals
+  const totalShiftOK = shiftTransactions.reduce((acc, tx) => acc + tx.qty, 0);
+  const totalShiftNG = shiftTransactions.reduce((acc, tx) => acc + (tx.qty_ng || 0), 0);
+
   // 3. Alerts Section: Remain < 0 and total WIP running is 0
   const getAlertItems = () => {
     const alerts: { item: Item; customer: Customer; deficit: number; target: number }[] = [];
@@ -191,6 +214,29 @@ export default function ShiftReport({
       }
     } else {
       text += `\n_(Tidak ada material aktif di semua proses)_\n`;
+    }
+
+    text += `\n===================================\n`;
+    text += `*3. LOG HASIL PRODUKSI (OK vs NG)*\n`;
+    if (shiftTransactions.length > 0) {
+      text += `Total OK: *${totalShiftOK.toLocaleString()}* pcs\n`;
+      text += `Total NG: *${totalShiftNG.toLocaleString()}* pcs\n\n`;
+      
+      for (const tx of shiftTransactions) {
+        const item = items.find(i => i.id === tx.item_id);
+        const cust = item ? customers.find(c => c.id === item.customer_id) : null;
+        const custName = cust ? cust.nama : 'Unknown';
+        const modelName = item ? item.model : 'Unknown';
+        const timeStr = new Date(tx.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const ngText = tx.qty_ng && tx.qty_ng > 0 ? ` | NG: *${tx.qty_ng.toLocaleString()}* pcs` : '';
+        const noteText = tx.catatan ? ` _(${tx.catatan})_` : '';
+        
+        text += `• [${timeStr}] ${custName} | ${modelName}\n`;
+        text += `  *${tx.proses} [${tx.aksi}]*\n`;
+        text += `  OK: *${tx.qty.toLocaleString()}* pcs${ngText}${noteText}\n`;
+      }
+    } else {
+      text += `\n_(Belum ada transaksi produksi pada shift ini)_\n`;
     }
 
     if (alertItems.length > 0) {
@@ -469,6 +515,85 @@ export default function ShiftReport({
             ) : (
               <div className="col-span-2 py-6 text-center text-slate-400 text-xs italic font-medium">
                 Tidak ada material aktif di semua alur proses saat ini.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section 2.5: Log Hasil Produksi OK vs NG */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 font-display">
+              <ClipboardList size={14} className="text-slate-400" />
+              3. LOG HASIL PRODUKSI SHIFT INI
+            </h3>
+            {shiftTransactions.length > 0 && (
+              <div className="flex items-center gap-2.5 text-[10px] font-mono">
+                <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-1.5 py-0.5 rounded-md">
+                  OK: <strong>{totalShiftOK.toLocaleString()}</strong>
+                </span>
+                <span className="text-rose-700 bg-rose-50 border border-rose-200/50 px-1.5 py-0.5 rounded-md">
+                  NG: <strong>{totalShiftNG.toLocaleString()}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2.5">
+            {shiftTransactions.length > 0 ? (
+              shiftTransactions.map((tx) => {
+                const item = items.find(i => i.id === tx.item_id);
+                const cust = item ? customers.find(c => c.id === item.customer_id) : null;
+                const timeStr = new Date(tx.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                return (
+                  <div key={tx.id} className="bg-white p-3.5 rounded-xl border border-slate-200/50 shadow-sm flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-black text-slate-800 font-display">
+                            {cust ? cust.nama : 'UNKNOWN'} | {item ? item.model : 'UNKNOWN'}
+                          </span>
+                          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md font-mono ${
+                            tx.aksi === 'MASUK' 
+                              ? 'bg-emerald-500/10 text-emerald-800 border border-emerald-500/20' 
+                              : 'bg-rose-500/10 text-rose-800 border border-rose-500/20'
+                          }`}>
+                            {tx.proses} [{tx.aksi}]
+                          </span>
+                        </div>
+                        {item && (
+                          <span className="text-[10px] text-slate-400 font-mono font-medium block mt-0.5">
+                            Part: {item.part_number}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 font-mono bg-slate-100 px-2 py-0.5 rounded-md">
+                        {timeStr}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center border-t border-slate-100 pt-2 text-xs font-mono">
+                      <div className="flex gap-4">
+                        <span className="text-slate-600">
+                          OK: <strong className="text-slate-900 font-extrabold">{tx.qty.toLocaleString()}</strong> pcs
+                        </span>
+                        <span className={tx.qty_ng && tx.qty_ng > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}>
+                          NG: <strong className={tx.qty_ng && tx.qty_ng > 0 ? 'text-rose-600 font-extrabold' : 'text-slate-400 font-medium'}>{(tx.qty_ng || 0).toLocaleString()}</strong> pcs
+                        </span>
+                      </div>
+                      {tx.catatan && (
+                        <span className="text-[10px] text-slate-500 italic max-w-[150px] truncate" title={tx.catatan}>
+                          "{tx.catatan}"
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-6 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs italic font-medium">
+                Belum ada transaksi produksi yang dicatat untuk shift ini.
               </div>
             )}
           </div>

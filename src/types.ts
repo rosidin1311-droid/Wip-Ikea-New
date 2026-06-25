@@ -39,6 +39,7 @@ export interface Transaction {
   proses: string; // e.g. 'FLEXO', 'PACKING'
   aksi: TransactionAction;
   qty: number;
+  qty_ng?: number; // Quantity No Good (NG) / defect
   catatan?: string;
   timestamp: string; // ISO string or epoch
 }
