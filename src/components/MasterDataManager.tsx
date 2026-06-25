@@ -170,7 +170,7 @@ export default function MasterDataManager({
 
   const handleClearWIPData = () => {
     const confirmClear = confirm(
-      "PERINGATAN KERAS!\n\nApakah Anda yakin ingin BERSIHKAN SEMUA DATA LAPORAN WIP?\n\nTindakan ini akan mengosongkan seluruh log transaksi masuk/keluar di semua line proses. Posisi WIP di lantai produksi akan kembali ke 0 (Kosong).\n\nData Master (Customer, Item, dan Forecast) akan tetap utuh."
+      "PERINGATAN KERAS!\n\nApakah Anda yakin ingin BERSIHKAN SEMUA DATA LAPORAN WIP & STOK?\n\nTindakan ini akan mengosongkan seluruh log transaksi masuk/keluar di semua line proses. Posisi WIP, Stok Ready, dan Target Forecast/Delivery di lantai produksi akan disetel kembali ke 0 (Kosong).\n\nData Master (Daftar Customer, Item, dan Alur Proses) akan tetap utuh."
     );
     if (confirmClear) {
       onResetWIPLogs();
@@ -767,9 +767,9 @@ export default function MasterDataManager({
                 <RotateCw size={18} className="animate-spin-slow" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-slate-900 tracking-tight">Bersihkan Laporan WIP</h4>
+                <h4 className="text-sm font-bold text-slate-900 tracking-tight">Bersihkan Laporan WIP, Stok &amp; Forecast</h4>
                 <p className="text-xs text-slate-500 leading-normal">
-                  Menghapus semua log transaksi masuk/keluar pada line proses. Tindakan ini akan mereset seluruh posisi WIP aktif menjadi <strong>0 (NOL)</strong> di lantai produksi.
+                  Menghapus semua log transaksi masuk/keluar pada line proses, mereset stok ready item menjadi <strong>0</strong>, dan membersihkan target forecast agar Anda dapat menginput kondisi lantai produksi saat ini dari awal.
                 </p>
               </div>
             </div>
@@ -777,7 +777,7 @@ export default function MasterDataManager({
             <div className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-3.5 flex gap-2.5 items-start">
               <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
               <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                <strong>Pemberitahuan:</strong> Data master seperti Daftar Customer, Spesifikasi Item, Alur Proses, dan Target Forecast/Delivery tetap aman dan <strong>TIDAK</strong> akan terhapus.
+                <strong>Pemberitahuan:</strong> Data master seperti Daftar Customer, Spesifikasi Item, dan Konfigurasi Alur Proses tetap aman dan <strong>TIDAK</strong> akan terhapus.
               </p>
             </div>
 

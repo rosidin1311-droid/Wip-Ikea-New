@@ -84,6 +84,13 @@ export default function App() {
   const handleResetWIPLogs = () => {
     setTransactions([]);
     saveTransactions([]);
+
+    const resetItems = items.map(item => ({ ...item, stok_ready: 0 }));
+    setItems(resetItems);
+    saveItems(resetItems);
+
+    setForecasts([]);
+    saveForecasts([]);
   };
 
   // Restore everything from backup
