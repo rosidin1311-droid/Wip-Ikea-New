@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, Item, Forecast, Transaction } from '../types';
 import { calculateWIP, calculateTotalWIP } from '../utils/storage';
-import { Calendar, Clipboard, Check, RefreshCw, AlertTriangle, Users, Box, Layers, Printer } from 'lucide-react';
+import { Calendar, Clipboard, Check, RefreshCw, AlertTriangle, Users, Box, Layers, Printer, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 
 interface ShiftReportProps {
   customers: Customer[];
@@ -35,9 +35,41 @@ export default function ShiftReport({
   const [shift, setShift] = useState(getInitialShift());
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   const [copied, setCopied] = useState(false);
+  const [hideZeroWIP, setHideZeroWIP] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Active items and customers
   const activeCustomers = customers.filter(c => c.status);
+
+  // Search Filter: filter by query
+  const searchFilteredItems = items.filter(item => {
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      const modelMatch = item.model.toLowerCase().includes(query);
+      const partMatch = item.part_number.toLowerCase().includes(query);
+      
+      const cust = customers.find(c => c.id === item.customer_id);
+      const custNameMatch = cust ? cust.nama.toLowerCase().includes(query) : false;
+
+      return modelMatch || partMatch || custNameMatch;
+    }
+    return true;
+  });
+
+  // WIP Filter: filter by zero WIP if requested
+  const filteredItems = searchFilteredItems.filter(item => {
+    if (hideZeroWIP) {
+      const totalWIP = calculateTotalWIP(transactions, item);
+      return totalWIP > 0;
+    }
+    return true;
+  });
+
+  // Filter customers that have active filtered items
+  const filteredCustomers = activeCustomers.filter(cust => {
+    const custItems = filteredItems.filter(i => i.customer_id === cust.id);
+    return custItems.length > 0;
+  });
   
   // Format current timestamp for header
   const printedTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -55,7 +87,7 @@ export default function ShiftReport({
   const getProcessSummary = () => {
     const summary: { [process: string]: { model: string; qty: number; customer: string }[] } = {};
 
-    for (const item of items) {
+    for (const item of filteredItems) {
       const cust = customers.find(c => c.id === item.customer_id);
       const custName = cust?.nama || 'Unknown';
       
@@ -86,7 +118,7 @@ export default function ShiftReport({
     const activeForecasts = forecasts.filter(f => f.status === 'ACTIVE');
 
     for (const forecast of activeForecasts) {
-      const item = items.find(i => i.id === forecast.item_id);
+      const item = searchFilteredItems.find(i => i.id === forecast.item_id);
       if (!item) continue;
 
       const cust = customers.find(c => c.id === item.customer_id);
@@ -124,8 +156,8 @@ export default function ShiftReport({
     text += `===================================\n\n`;
 
     text += `*1. POSISI WIP & STOK PER CUSTOMER*\n`;
-    for (const cust of activeCustomers) {
-      const custItems = items.filter(i => i.customer_id === cust.id);
+    for (const cust of filteredCustomers) {
+      const custItems = filteredItems.filter(i => i.customer_id === cust.id);
       if (custItems.length === 0) continue;
 
       text += `\n*• CUSTOMER: ${cust.nama}*\n`;
@@ -220,27 +252,104 @@ export default function ShiftReport({
       </div>
 
       {/* Control Configuration (For report simulation) */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm grid grid-cols-2 gap-3.5 mb-6">
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">Tanggal Laporan</label>
-          <input
-            type="date"
-            value={reportDate}
-            onChange={(e) => setReportDate(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-mono font-extrabold text-slate-800 focus:outline-none focus:border-ikea-blue focus:ring-2 focus:ring-indigo-100 transition-all"
-          />
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/70 shadow-sm space-y-4 mb-6">
+        <div className="grid grid-cols-2 gap-3.5">
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">Tanggal Laporan</label>
+            <input
+              type="date"
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-mono font-extrabold text-slate-800 focus:outline-none focus:border-ikea-blue focus:ring-2 focus:ring-indigo-100 transition-all"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">Pilih Shift Kerja</label>
+            <select
+              value={shift}
+              onChange={(e) => setShift(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-ikea-blue focus:ring-2 focus:ring-indigo-100 transition-all"
+            >
+              <option value="PAGI (Shift 1)">PAGI (Shift 1)</option>
+              <option value="SIANG (Shift 2)">SIANG (Shift 2)</option>
+              <option value="MALAM (Shift 3)">MALAM (Shift 3)</option>
+            </select>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">Pilih Shift Kerja</label>
-          <select
-            value={shift}
-            onChange={(e) => setShift(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-ikea-blue focus:ring-2 focus:ring-indigo-100 transition-all"
-          >
-            <option value="PAGI (Shift 1)">PAGI (Shift 1)</option>
-            <option value="SIANG (Shift 2)">SIANG (Shift 2)</option>
-            <option value="MALAM (Shift 3)">MALAM (Shift 3)</option>
-          </select>
+
+        {/* Search & Filter controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+          {/* Search Input */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-[10px] font-black text-slate-500 block uppercase tracking-wider">Cari Item / Customer</label>
+              {searchQuery && (
+                <span className="text-[10px] font-bold bg-[#800412]/10 text-[#800412] px-2 py-0.5 rounded-full">
+                  Pencarian Aktif
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                placeholder="Cari model, nomor part, atau customer..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-slate-200/80 focus:border-[#800412] focus:ring-4 focus:ring-[#800412]/5 pl-11 pr-10 py-3 rounded-2xl text-xs font-bold text-slate-800 transition-all placeholder:text-slate-400"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200/75 hover:bg-slate-300 flex items-center justify-center text-slate-500 hover:text-slate-700 cursor-pointer transition-colors"
+                >
+                  <X size={12} className="stroke-[2.5]" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Toggle WIP Switch */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 block uppercase tracking-wider">Filter Tampilan WIP</label>
+            <div 
+              onClick={() => setHideZeroWIP(!hideZeroWIP)}
+              className={`flex items-center justify-between border-2 p-3.5 rounded-2xl cursor-pointer transition-all ${
+                hideZeroWIP 
+                  ? 'bg-[#800412]/5 border-[#800412]/20 shadow-sm shadow-[#800412]/5' 
+                  : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="space-y-0.5 pr-4 select-none">
+                <span className="text-xs font-extrabold text-slate-800 block">Sembunyikan Tanpa WIP</span>
+                <span className="text-[10px] text-slate-400 font-medium leading-tight block">Hanya tampilkan item yang memiliki aktivitas WIP aktif</span>
+              </div>
+              
+              {/* Premium iOS/Material tactile switch */}
+              <div className="relative shrink-0">
+                <div className={`w-12 h-7 rounded-full transition-colors duration-300 ${
+                  hideZeroWIP ? 'bg-[#800412]' : 'bg-slate-300'
+                }`} />
+                <div className={`absolute top-0.5 left-0.5 bg-white w-6 h-6 rounded-full shadow-md transition-transform duration-300 flex items-center justify-center ${
+                  hideZeroWIP ? 'translate-x-5' : 'translate-x-0'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${hideZeroWIP ? 'bg-[#800412]' : 'bg-slate-300'}`} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Items Match Badge */}
+        <div className="bg-slate-50 border border-slate-200/50 rounded-2xl px-4 py-2.5 flex items-center justify-between">
+          <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1.5">
+            <Layers size={12} className="text-slate-400" />
+            Status Filter:
+          </span>
+          <span className="text-[10px] font-black text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+            Menampilkan <strong className="text-[#800412] font-mono">{filteredItems.length}</strong> dari <strong className="font-mono">{items.length}</strong> spesifikasi item
+          </span>
         </div>
       </div>
 
@@ -266,61 +375,68 @@ export default function ShiftReport({
           </h3>
 
           <div className="space-y-4">
-            {activeCustomers.map((cust) => {
-              const custItems = items.filter(i => i.customer_id === cust.id);
-              if (custItems.length === 0) return null;
+            {filteredCustomers.length > 0 ? (
+              filteredCustomers.map((cust) => {
+                const custItems = filteredItems.filter(i => i.customer_id === cust.id);
 
-              return (
-                <div key={cust.id} className="bg-slate-50 border border-slate-200/50 rounded-2xl p-4 space-y-3">
-                  <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wide font-display border-l-4 border-l-ikea-blue pl-2.5">
-                    {cust.nama}
-                  </h4>
+                return (
+                  <div key={cust.id} className="bg-slate-50 border border-slate-200/50 rounded-2xl p-4 space-y-3">
+                    <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wide font-display border-l-4 border-l-ikea-blue pl-2.5">
+                      {cust.nama}
+                    </h4>
 
-                  <div className="space-y-2.5">
-                    {custItems.map((item) => {
-                      const wipDetails = getItemWIPDetail(item);
-                      
-                      return (
-                        <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200/40 text-xs shadow-sm">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-extrabold text-slate-900 font-display">{item.model}</p>
-                              <p className="text-[10px] text-slate-400 font-mono font-medium mt-0.5">{item.part_number}</p>
+                    <div className="space-y-2.5">
+                      {custItems.map((item) => {
+                        const wipDetails = getItemWIPDetail(item);
+                        
+                        return (
+                          <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200/40 text-xs shadow-sm">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-extrabold text-slate-900 font-display">{item.model}</p>
+                                <p className="text-[10px] text-slate-400 font-mono font-medium mt-0.5">{item.part_number}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">STOK READY</p>
+                                <p className="font-black text-slate-900 font-mono text-sm mt-0.5">{item.stok_ready.toLocaleString()} pcs</p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">STOK READY</p>
-                              <p className="font-black text-slate-900 font-mono text-sm mt-0.5">{item.stok_ready.toLocaleString()} pcs</p>
-                            </div>
-                          </div>
 
-                          {/* Process trail */}
-                          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[10px]">
-                            <span className="text-slate-400 font-bold uppercase font-mono">WIP:</span>
-                            {item.alur_proses.map((proc, index) => {
-                              const wipVal = calculateWIP(transactions, item.id, proc);
-                              return (
-                                <span key={proc} className="inline-flex items-center gap-1">
-                                  <span className={`px-1.5 py-0.5 rounded font-mono font-bold border ${
-                                    wipVal > 0 
-                                      ? 'bg-amber-500/10 text-amber-800 border-amber-500/20' 
-                                      : 'bg-slate-100 text-slate-400 border-slate-200/20'
-                                  }`}>
-                                    {proc} ({wipVal.toLocaleString()})
+                            {/* Process trail */}
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[10px]">
+                              <span className="text-slate-400 font-bold uppercase font-mono">WIP:</span>
+                              {item.alur_proses.map((proc, index) => {
+                                const wipVal = calculateWIP(transactions, item.id, proc);
+                                return (
+                                  <span key={proc} className="inline-flex items-center gap-1">
+                                    <span className={`px-1.5 py-0.5 rounded font-mono font-bold border ${
+                                      wipVal > 0 
+                                        ? 'bg-amber-500/10 text-amber-800 border-amber-500/20' 
+                                        : 'bg-slate-100 text-slate-400 border-slate-200/20'
+                                    }`}>
+                                      {proc} ({wipVal.toLocaleString()})
+                                    </span>
+                                    {index < item.alur_proses.length - 1 && (
+                                      <span className="text-slate-300">→</span>
+                                    )}
                                   </span>
-                                  {index < item.alur_proses.length - 1 && (
-                                    <span className="text-slate-300">→</span>
-                                  )}
-                                </span>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-3xl p-8 text-center text-slate-400 text-xs italic">
+                {searchQuery 
+                  ? "Tidak ada item atau customer yang cocok dengan pencarian Anda." 
+                  : "Tidak ada item dengan WIP aktif saat ini."}
+              </div>
+            )}
           </div>
         </div>
 
