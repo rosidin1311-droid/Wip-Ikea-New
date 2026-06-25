@@ -53,6 +53,7 @@ export default function MasterDataManager({
   const [itemPartNumber, setItemPartNumber] = useState('');
   const [selectedProses, setSelectedProses] = useState<string[]>([]);
   const [itemStockReady, setItemStockReady] = useState(0);
+  const [useExistingModel, setUseExistingModel] = useState(true);
 
   // Custom Process Pool State
   const [availableProses, setAvailableProses] = useState<string[]>(() => {
@@ -292,6 +293,8 @@ export default function MasterDataManager({
     setItemPartNumber(item.part_number);
     setSelectedProses(item.alur_proses);
     setItemStockReady(item.stok_ready);
+    const hasModels = items.some(i => i.customer_id === item.customer_id);
+    setUseExistingModel(hasModels);
     setShowItemForm(true);
   };
 
@@ -471,11 +474,14 @@ export default function MasterDataManager({
               <button
                 onClick={() => {
                   setEditingItemId(null);
-                  setItemCustId(customers.find(c => c.status)?.id || '');
+                  const defaultCust = customers.find(c => c.status)?.id || '';
+                  setItemCustId(defaultCust);
                   setItemModel('');
                   setItemPartNumber('');
                   setSelectedProses([]);
                   setItemStockReady(0);
+                  const hasModels = items.some(i => i.customer_id === defaultCust);
+                  setUseExistingModel(hasModels);
                   setShowItemForm(true);
                 }}
                 className="bg-ikea-blue hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/10 active:scale-95 transition-all cursor-pointer"
@@ -496,7 +502,13 @@ export default function MasterDataManager({
                 <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Customer *</label>
                 <select
                   value={itemCustId}
-                  onChange={(e) => setItemCustId(e.target.value)}
+                  onChange={(e) => {
+                    const custId = e.target.value;
+                    setItemCustId(custId);
+                    const hasModels = items.some(i => i.customer_id === custId);
+                    setUseExistingModel(hasModels);
+                    setItemModel('');
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-semibold text-slate-800"
                   required
                 >
@@ -511,15 +523,59 @@ export default function MasterDataManager({
 
               {/* Model Name */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Nama Model *</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: CONS BOX, MBOX"
-                  value={itemModel}
-                  onChange={(e) => setItemModel(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-semibold text-slate-850 uppercase"
-                  required
-                />
+                {(() => {
+                  const customerModels = Array.from(
+                    new Set(
+                      items
+                        .filter(i => i.customer_id === itemCustId)
+                        .map(i => i.model.toUpperCase())
+                        .filter(Boolean)
+                    )
+                  ).sort();
+
+                  return (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-extrabold text-slate-500 block uppercase tracking-wider">Nama Model *</label>
+                        {customerModels.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUseExistingModel(!useExistingModel);
+                              setItemModel('');
+                            }}
+                            className="text-[9px] font-extrabold text-indigo-600 hover:text-indigo-800 uppercase tracking-wider focus:outline-none transition-colors cursor-pointer"
+                          >
+                            {useExistingModel ? '✎ Ketik Model Baru' : '📋 Pilih Model Terdaftar'}
+                          </button>
+                        )}
+                      </div>
+
+                      {useExistingModel && customerModels.length > 0 ? (
+                        <select
+                          value={itemModel}
+                          onChange={(e) => setItemModel(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-semibold text-slate-800"
+                          required
+                        >
+                          <option value="">-- Pilih Model --</option>
+                          {customerModels.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Contoh: CONS BOX, MBOX"
+                          value={itemModel}
+                          onChange={(e) => setItemModel(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 px-3.5 py-3 rounded-xl text-sm focus:outline-none focus:border-ikea-blue focus:ring-4 focus:ring-indigo-100 transition-all font-semibold text-slate-850 uppercase"
+                          required
+                        />
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Part Number */}
