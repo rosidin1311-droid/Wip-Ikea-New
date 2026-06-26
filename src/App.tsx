@@ -111,8 +111,9 @@ export default function App() {
   };
 
   // Callback to log transaction and auto-update stock if needed
-  const handleAddTransaction = (newTx: Transaction, updatedStock?: { itemId: string; newStock: number }) => {
-    const updatedTxs = [newTx, ...transactions];
+  const handleAddTransaction = (newTx: Transaction | Transaction[], updatedStock?: { itemId: string; newStock: number }) => {
+    const txList = Array.isArray(newTx) ? newTx : [newTx];
+    const updatedTxs = [...txList, ...transactions];
     setTransactions(updatedTxs);
     saveTransactions(updatedTxs);
 

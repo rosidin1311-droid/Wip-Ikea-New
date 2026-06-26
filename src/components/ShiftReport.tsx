@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, Item, Forecast, Transaction } from '../types';
 import { calculateWIP, calculateTotalWIP } from '../utils/storage';
-import { Calendar, Clipboard, Check, RefreshCw, AlertTriangle, Users, Box, Layers, Printer, Search, ToggleLeft, ToggleRight, X, ClipboardList } from 'lucide-react';
+import { Calendar, Clipboard, Check, RefreshCw, AlertTriangle, Users, Box, Layers, Printer, Search, ToggleLeft, ToggleRight, X, ClipboardList, Camera } from 'lucide-react';
 
 interface ShiftReportProps {
   customers: Customer[];
@@ -37,6 +37,7 @@ export default function ShiftReport({
   const [copied, setCopied] = useState(false);
   const [hideZeroWIP, setHideZeroWIP] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFullFoto, setSelectedFullFoto] = useState<string | null>(null);
 
   // Active items and customers
   const activeCustomers = customers.filter(c => c.status);
@@ -588,6 +589,24 @@ export default function ShiftReport({
                         </span>
                       )}
                     </div>
+
+                    {tx.foto && (
+                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
+                          <Camera size={10} className="text-indigo-500" />
+                          Lampiran Foto:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            onClick={() => setSelectedFullFoto(tx.foto || null)}
+                            className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:border-indigo-500 hover:ring-2 hover:ring-indigo-100 transition-all shrink-0 bg-slate-50"
+                          >
+                            <img src={tx.foto} alt="Lampiran" className="w-full h-full object-cover" />
+                          </div>
+                          <span className="text-[8px] text-slate-400 font-medium font-sans">Tap untuk perbesar</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -627,6 +646,34 @@ export default function ShiftReport({
           </div>
         )}
       </div>
+
+      {/* Photo Lightbox Modal */}
+      {selectedFullFoto && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setSelectedFullFoto(null)}
+        >
+          <div 
+            className="relative max-w-md w-full rounded-2xl overflow-hidden shadow-2xl bg-slate-900 border border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={selectedFullFoto} 
+              alt="Bukti Foto Full" 
+              className="w-full max-h-[70vh] object-contain mx-auto bg-slate-950"
+            />
+            <div className="p-4 bg-slate-900 flex justify-between items-center text-white border-t border-slate-800">
+              <span className="text-xs font-bold font-sans">Lampiran Bukti Foto WIP</span>
+              <button
+                onClick={() => setSelectedFullFoto(null)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+              >
+                Tutup [X]
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

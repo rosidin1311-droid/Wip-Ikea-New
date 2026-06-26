@@ -41,6 +41,7 @@ export interface Transaction {
   qty: number;
   qty_ng?: number; // Quantity No Good (NG) / defect
   catatan?: string;
+  foto?: string; // Optional compressed Base64 image
   timestamp: string; // ISO string or epoch
 }
 
